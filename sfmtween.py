@@ -122,16 +122,65 @@ class tween_MainWindow(QtGui.QMainWindow):
             
         return None ,None
     
-    def lerpKey(self,log,time,leftkeyvalue,rightkeyvalue,lerpAmount):
+    def lerpKey(self,log,time,leftkeytime,rightkeytime,lerpAmount):
         
-        lerpValue=vs.mathlib.VectorLerp(leftkeyvalue,rightkeyvalue,lerpAmount)
-        log.FindOrAddKey(time,vs.DmeTime_t(1.0),lerpValue)
         
-        print time,lerpValue
+        
+        if log.FindKey(leftkeytime) < 0 or log.FindKey(rightkeytime) < 0 :
+            return
+        
+        
+        leftkeyvalue=log.GetKeyValue(log.FindKey(leftkeytime))
+        
+        rightkeyvalue=log.GetKeyValue(log.FindKey(rightkeytime))
+        
+        
+       
+        
+        self.addBookmark(log,time)
+        
+       
+        
+        if log.GetTypeString()=='DmeVector3Log':
+            
+        
+            lerpValue=vs.mathlib.VectorLerp(leftkeyvalue,rightkeyvalue,lerpAmount)
+           
+        elif log.GetTypeString()=='DmeQuaternionLog':
+            lerpValue=vs.Quaternion().Identity()
+            vs.mathlib.QuaternionSlerp(leftkeyvalue,rightkeyvalue,lerpAmount,lerpValue)
+        
+        elif log.GetTypeString()=='DmeFloatLog':
+            
+            return
+        
+        
+        #makes step key
+        log.InsertKey(time-vs.DmeTime_t(1),leftkeyvalue)
+        index=log.InsertKey(time,lerpValue)
+        
+        
+        
+        
+        
+        #log.FindOrAddKey(rightkeytime-vs.DmeTime_t(1),vs.DmeTime_t(1.0),lerpValue)
+        log.GetLayer(0).values[index+1]=lerpValue
+        
+        
+        
+         
+         
+         
+         
+
+         
+         
+         
          
     def OnSliderMove(self,lerpValue):
         playheadframe= self.get_keytime_from_frame(sfmApp.GetHeadTimeInFrames())
         #sfm.SetOperationMode( "Record" )
+        dm.SetUndoEnabled(False)
         for activeControl in self.controlListLive:
             
             
@@ -145,20 +194,29 @@ class tween_MainWindow(QtGui.QMainWindow):
                     print 'book error'
                     return
                 
-                dm.SetUndoEnabled(False)
-                #place code here
-                
-                #self.addBookmark(FirstChannel.log,playheadframe)
-                print leftbook,rightbook
-                self.lerpKey(FirstChannel.log,playheadframe,FirstChannel.log.GetValue(leftbook),FirstChannel.log.GetValue(rightbook),lerpValue)
-                dm.SetUndoEnabled(True)  
 
-                
-                
-                
+                self.lerpKey(FirstChannel.log,playheadframe,leftbook,rightbook,lerpValue)
             else:
                 self.statusbar.showMessage('need more keys',2000)
+                
+            if SecondChannel and SecondChannel.log.GetNumBookmarks(0)>1:
+                
+                leftbook,rightbook= self.get_before_and_after_keys(SecondChannel,playheadframe)
+                
+                if not leftbook or not rightbook:
+                    print 'book error'
+                    return
+                
+
+                self.lerpKey(SecondChannel.log,playheadframe,leftbook,rightbook,lerpValue)
+
+
+
+                
         sfmApp.SetHeadTimeInFrames(sfmApp.GetHeadTimeInFrames())
+        dm.SetUndoEnabled(True) 
+        
+        
         
     def showAllcontrols(self,bol):
         #change to hide
@@ -262,7 +320,7 @@ class tween_MainWindow(QtGui.QMainWindow):
         
 
     def retranslateUi(self, MainWindow):
-        MainWindow.setWindowTitle(QtGui.QApplication.translate("MainWindow", "MainWindow", None, QtGui.QApplication.UnicodeUTF8))
+        MainWindow.setWindowTitle(QtGui.QApplication.translate("MainWindow", "Sfm Tween", None, QtGui.QApplication.UnicodeUTF8))
         self.groupBox.setTitle(QtGui.QApplication.translate("MainWindow", "selected", None, QtGui.QApplication.UnicodeUTF8))
         #self.checkEnable.setText(QtGui.QApplication.translate("MainWindow", "All Selected", None, QtGui.QApplication.UnicodeUTF8))
         self.actionShow_all_selected.setText(QtGui.QApplication.translate("MainWindow", "show all selected", None, QtGui.QApplication.UnicodeUTF8))
